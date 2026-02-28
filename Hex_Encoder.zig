@@ -1,53 +1,49 @@
 const std = @import("std");
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
-    const stdout = std.io.getStdOut().writer();
-    const stdin = std.io.getStdIn().reader();
+    const heap = std.heap.page_allocator;
+    const out = std.io.getStdOut().writer();
+    const inp = std.io.getStdIn().reader();
 
-    try stdout.print("Por gentileza, insira o nome do arquivo (ex: texto.txt) ou digite o texto a ser codificado:\n> ", .{});
+    try out.print("Enter filename (e.g., file.txt) or text to encode:\n> ", .{});
 
-    var input_buffer: [256]u8 = undefined;
-    const input_slice = try stdin.readUntilDelimiterOrEof(&input_buffer, '\n') orelse &[_]u8{};
-    const user_input = std.mem.trimRight(u8, input_slice, "\r\n");
+    var buf: [256]u8 = undefined;
+    const slice = try inp.readUntilDelimiterOrEof(&buf, '\n') orelse &[_]u8{};
+    const raw = std.mem.trimRight(u8, slice, "\r\n");
 
-    var data: []const u8 = undefined;
+    var payload: []const u8 = undefined;
 
-   
-    if (std.fs.cwd().openFile(user_input, .{ .mode = .read_only })) |file| {
-        defer file.close();
-        const file_size = (try file.stat()).size;
-        const file_data = try allocator.alloc(u8, file_size);
-        defer allocator.free(file_data);
-        _ = try file.readAll(file_data);
-        data = file_data;
+    if (std.fs.cwd().openFile(raw, .{ .mode = .read_only })) |f| {
+        defer f.close();
+        const sz = (try f.stat()).size;
+        const tmp = try heap.alloc(u8, sz);
+        defer heap.free(tmp);
+        _ = try f.readAll(tmp);
+        payload = tmp;
     } else |_| {
-        
-        data = user_input;
+        payload = raw;
     }
 
-    try stdout.print("Deseja nomear o arquivo de saída? (pressione ENTER para usar 'Thanks_Pedct.txt'):\n> ", .{});
+    try out.print("Output filename? (Enter for 'Thanks_Pedct.txt'):\n> ", .{});
 
-    var name_buffer: [256]u8 = undefined;
-    const name_slice = try stdin.readUntilDelimiterOrEof(&name_buffer, '\n') orelse &[_]u8{};
-    const output_name = if (name_slice.len > 0) 
-        std.mem.trim(u8, name_slice, " \r\n") 
-    else 
+    var nb: [256]u8 = undefined;
+    const nslice = try inp.readUntilDelimiterOrEof(&nb, '\n') orelse &[_]u8{};
+    const outname = if (nslice.len > 0)
+        std.mem.trim(u8, nslice, " \r\n")
+    else
         "Thanks_Pedct.txt";
 
-    const output_file = try std.fs.cwd().createFile(output_name, .{});
-    defer output_file.close();
+    const ff = try std.fs.cwd().createFile(outname, .{});
+    defer ff.close();
 
-    
-    const writer = output_file.writer();
-    for (data) |b| {
-        try writer.print("{x:0>2}", .{b});  
+    const wr = ff.writer();
+    for (payload) |x| {
+        try wr.print("{x:0>2}", .{x});
     }
 
-    try writer.print("\n\nPowered by Pedct\n", .{});
-    try stdout.print("Arquivo '{s}' criado com sucesso! ✅\n", .{output_name});
+    try wr.print("\n\nPowered by Pedct\n", .{});
+    try out.print("File '{s}' created ✅\n", .{outname});
 
-    
-    try stdout.print("Pressione Enter para sair...", .{});
-    _ = try stdin.readByte();
+    try out.print("Press Enter to exit...", .{});
+    _ = try inp.readByte();
 }
